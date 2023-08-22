@@ -54,12 +54,14 @@ dotnet --info
 3. Digite o comando abaixo no **Terminal** para **Criar um novo Projeto Console**:
 
 ```bash
-dotnet new console --name helloworld --framework net7.0
+dotnet new console --name helloworld --framework net7.0 --use-program-main
 ```
 
 **--name:** Nome do Projeto
 
 **--framework:** Define a versão do SDK do .NET
+
+**--use-program-main:** Não utilizar instruções de nível superior
 
 4. A saída do comando será semelhante ao conteúdo abaixo:
 
@@ -84,7 +86,7 @@ A restauração foi bem-sucedida.
 
 7. Abra a Classe **Program**. 
 
-8. Substitua o código da Classe **Program** pelo código abaixo:
+8. O código da Classe **Program** será semelhante ao exemplo abaixo:
 
 ```c#
 namespace helloWorld
@@ -93,13 +95,11 @@ namespace helloWorld
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Console.WriteLine("Hello, World!");
         }
     }
 }
 ```
-
-*Observe que inserimos praticamente o mesmo código, adicionando o padrão de Classes do Visual Studio, contendo o **Namespace**, que é o nome do projeto e o Método **Main**, que é o Método principal de uma Classe C#.*
 
 Código implementado, vamos executar a aplicação:
 
