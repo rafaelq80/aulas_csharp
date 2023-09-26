@@ -22,19 +22,22 @@ No projeto Integrador, a Organização será composta por 3 Repositórios:
 	</tr>
 	<tr>
 		<td><b>Backend</b></td>
-		<td>Projeto Spring completo</td>
+		<td>Projeto ASP.NET completo</td>
 	</tr>
 	<tr>
 		<td><b>Frontend</b></td>
 		<td>Projeto Angular/React Completo</td>
 	</tr>
 </table>
+<br />
 
 <h2>Passo 01 - Preparação do ambiente</h2>
 
 1. Crie uma conta de e-mail gratuita com o nome do projeto (Gmail).
 
 2. Crie uma conta gratuita no Github utilizando o e-mail criado com o nome do projeto.
+
+<br />
 
 <h2>Passo 02 - Criando a Organização e adicionando os Membros</h2>
 
@@ -80,6 +83,8 @@ Neste passo, vamos criar uma organização dentro da conta do Github que o Grupo
 
 9. Após clicar no botão **Join**, o Github solicitará a senha do Github pessoal para confirmar a aceitação do convite.
 
+<br />
+
 <h2>Passo 03 - Criando Repositórios na Organização</h2>
 
 Neste passo vamos criar os nossos Repositórios Remotos.
@@ -98,6 +103,8 @@ Neste passo vamos criar os nossos Repositórios Remotos.
 4. Crie os demais Repositórios clicando no botão **New**.
 
 <div align="center"><img src="https://i.imgur.com/FB2N0kL.png" title="source: imgur.com" /></div>
+
+<br />
 
 <h2>Passo 04 - Criando um Time de Desenvolvimento</h2>
 
@@ -129,6 +136,8 @@ Neste passo vamos criar um time de desenvolvimento.
 
 6. Como os integrantes do grupo já fazem parte da Organização, todos receberão uma mensagem via e-mail informando que foram adicionados no time.
 
+<br />
+
 <h2>Passo 05 - Adicionando o Time no Repositório</h2>
 
 Neste passo, vamos adicionar o time nos Repositórios do Projeto.
@@ -155,6 +164,8 @@ Neste passo, vamos adicionar o time nos Repositórios do Projeto.
 | <img src="https://i.imgur.com/hOgWvSc.png" title="source: imgur.com" width="150px"/> | <div align="left"> **ATENÇÃO:** Como todos os Integrantes do Grupo terão acesso de Administrador do Repositório, tenham cuidado para manter o repositório organizado e sem erros.</div> |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 
+<br />
+
 <h2>Passo 06 - Personalizando a Organização</h2>
 
 1. Clique sobre logo da Organização
@@ -178,4 +189,3 @@ Neste passo, vamos adicionar o time nos Repositórios do Projeto.
 
 <br /><br />
 	
-<div align="left"><a href="README.md"><img src="https://i.imgur.com/XMgF3gl.png" title="source: imgur.com" width="3%"/>Voltar</a></div>
