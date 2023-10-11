@@ -2,66 +2,225 @@
 
 
 
-<h2>👣 Passo 01- Criar a Classe DateTimeOffsetConverter</h2>
+<h2>👣 Passo 01- Atualizar a Classe Program</h2>
 
 
 
-Vamos criar a Classe **DateTimeOffsetConverter**, que será responsável por converter a data no formato **DateTimeOffset** para o formato **UniversalTime**, compatível com **PostgreSQL**:
+Vamos atualizar Classe **Program**, para habilitar a compatibilidade com o tipo de dado **DateTimeOffset** no Banco de dados **PostgreSQL**:
 
-Dentro do projeto **blogpessoal**, na pasta **Configuration**, vamos criar a Classe **DateTimeOffsetConverter**:
+1. Abra a Classe **Program**, localizada na pasta raís do projeto.
+2. Localize a linha abaixo:
 
-1. Clique com o botão direito do mouse sobre a **pasta Configuration**, do projeto **blogpessoal** e na sequência, clique na opção **Adicionar 🡪 Classe**.
-2. No item **Nome**, digite o nome da Classe (**DateTimeOffsetConverter**)
+<div align="center"><img src="https://i.imgur.com/KLrhx6q.png" title="source: imgur.com" /></div>
 
-Vamos implementar a Classe **DateTimeOffsetConverter**, como mostra a imagem abaixo:
+3. Logo abaixo desta linha, insira a linha abaixo:
 
 ```c#
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+```
 
-namespace blogpessoal.Configuration
+Esta linha habilita a compatibilidade com o tipo de dado **DateTimeOffset** no Banco de dados **PostgreSQL**.
+
+4. O código completo da Classe Program, você confere abaixo:
+
+```c#
+
+using blogpessoal.Configuration;
+using blogpessoal.Data;
+using blogpessoal.Model;
+using blogpessoal.Security;
+using blogpessoal.Security.Implements;
+using blogpessoal.Service;
+using blogpessoal.Service.Implements;
+using blogpessoal.Validator;
+using FluentValidation;
+using MicroElements.Swashbuckle.FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+
+namespace blogpessoal
 {
-    public class DateTimeOffsetConverter : ValueConverter<DateTimeOffset, DateTimeOffset>
+    public class Program
     {
-        public DateTimeOffsetConverter()
-            : base(
-                d => d.ToUniversalTime(),
-                d => d.ToUniversalTime()
-            )
-        { }
-   
+        public static void Main(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+
+            // Add services to the container.
+
+            builder.Services.AddControllers()
+                .AddNewtonsoftJson(options =>
+                {
+                    options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+                    options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
+                });
+
+            // Conexão com o Banco de dados
+            if (builder.Configuration["Environment:Start"] == "PROD")
+            {
+                // Conexão com o PostgresSQL - Nuvem
+
+                builder.Configuration
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("secrets.json");
+                
+                var connectionString = builder.Configuration
+               .GetConnectionString("ProdConnection");
+
+                builder.Services.AddDbContext<AppDbContext>(options =>
+                    options.UseNpgsql(connectionString)
+                );
+            }
+            else 
+            {
+                // Conexão com o SQL Server - Localhost
+                var connectionString = builder.Configuration
+                .GetConnectionString("DefaultConnection");
+
+                builder.Services.AddDbContext<AppDbContext>(options =>
+                    options.UseSqlServer(connectionString)
+                );
+            }
+            
+
+            // Registrar a Validação das Entidades
+            builder.Services.AddTransient<IValidator<Postagem>, PostagemValidator>();
+            builder.Services.AddTransient<IValidator<Tema>, TemaValidator>();
+            builder.Services.AddTransient<IValidator<User>, UserValidator>();
+
+            // Registrar as Classes de Serviço (Service)
+            builder.Services.AddScoped<IPostagemService, PostagemService>();
+            builder.Services.AddScoped<ITemaService, TemaService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
+
+            // Validação do Token
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            }).AddJwtBearer(options =>
+            {
+                var key = Encoding.UTF8.GetBytes(Settings.Secret);
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                };
+            });
+
+            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+            builder.Services.AddEndpointsApiExplorer();
+
+            // Configuração do Swagger
+            builder.Services.AddSwaggerGen(options =>
+            {
+                // Informações do Projeto e da Pessoa Desenvolvedora
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Version = "v1",
+                    Title = "Projeto Blog Pessoal",
+                    Description = "Projeto Blog Pessoal - ASP.NET Core 7.0",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "Rafael Queiróz",
+                        Email = "rafaelproinfo@gmail.com",
+                        Url = new Uri("https://github.com/rafaelq80")
+                    },
+                    License = new OpenApiLicense
+                    {
+                        Name = "Github",
+                        Url = new Uri("https://github.com/rafaelq80")
+                    }
+                });
+
+                // Configuração de Segurança no Swagger
+                options.AddSecurityDefinition("JWT", new OpenApiSecurityScheme
+                {
+                    In = ParameterLocation.Header,
+                    Description = "Digite um Token JWT válido",
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    BearerFormat = "JWT",
+                    Scheme = "Bearer"
+
+                });
+
+                // Adicionar a indicação de endpoint protegido no Swagger
+                options.OperationFilter<AuthResponsesOperationFilter>();
+
+            });
+
+            // Adicionar o Fluent Validation no Swagger
+            builder.Services.AddFluentValidationRulesToSwagger();
+
+            // Configuração do CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(name: "MyPolicy",
+                    policy =>
+                    {
+                        policy.AllowAnyOrigin()
+                                .AllowAnyMethod()
+                                .AllowAnyHeader();
+                    });
+            });
+
+            var app = builder.Build();
+
+            // habilita a compatibilidade com o tipo de dado DateTimeOffset no Banco de dados PostgreSQL
+            AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+            // Criar o Banco de dados e as Tabelas
+
+            using (var scope = app.Services.CreateAsyncScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                dbContext.Database.EnsureCreated();
+                
+            }
+
+            // Swagger Como Página Inicial - Localhost
+
+                app.UseSwagger();
+                app.UseSwaggerUI();
+
+            // Swagger Como Página Inicial - Nuvem
+
+            if (app.Environment.IsProduction())
+            {
+                app.UseSwaggerUI( options =>
+                {
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Blog Pessoal - v1");
+                    options.RoutePrefix = string.Empty;
+                });
+            }
+                    
+
+            // Inicializa o CORS
+            app.UseCors("MyPolicy");
+
+            // Autenticação do Usuário
+            app.UseAuthentication();
+
+            // Autorização do Usuário
+            app.UseAuthorization();
+
+            // Inicialização das Classes Controladoras
+            app.MapControllers();
+
+            app.Run();
+        }
     }
 }
 ```
-
-Vamos analisar o código:
-
-<div align="center"><img src="https://i.imgur.com/seDX9DK.png" title="source: imgur.com" /></div>
-
-**Linha 01:** Importamos o Namespace do **Entity Framework Core**, que contém a Classe **ValueConverter**.
-
-**Linha 05:** Cria a assinatura do Método **DateTimeOffsetConverter**, que herda a Classe **ValueConverter**. A Classe **ValueConverter** é responsável por criar uma conversão de um tipo de dado usado no **Entity Framework Core** para um outro tipo de dado utilizado no Banco de dados. O primeiro parâmetro representa o tipo do Objeto (Objeto C#, no exemplo o DateTimeOffset) e o segundo parâmetro representa o tipo de dado que será armazenado no Banco de dados. 
-
-**DateTimeOffset** é um formato de dado reconhecido pelo C# e pelo Banco de dados SQL Server, entretanto outros Banco de dados Relacionais, como o Postgres SQL por exemplo, utilizam um outro formato equivalente para armazenar dados do tipo DateTimeOffset, chamado **Timestamp with Timezone**. 
-
-Ambos os formatos seguem o padrão **UTC (Universal Time Coordinated)** e o fuso horário padrão é o UTC 00:00. O fuso horário padrão do Brasil (Brasília) está a UTC -03:00 de Grenwich. Caso não seja feito o ajuste do fuso horário, a hora será persistida seguindo o padrão UTC 00:00, com uma diferença de 3 horas a mais em relação ao fuso horário padrão do Brasil.
-
-**Exemplo:**
-
-**10:00 🡢 13:00** 
-
-O Banco de dados **SQL Server** reconhece o formato **DateTimeOffset** e permite ajustar o fuso horário subtraindo as 3 horas a mais, por exemplo. No caso dos outros Bancos de dados Relacionais, se tentarmos guardar um dado do tipo DateTimeOffset ajustando o fuso horário subtraindo as 3 horas adicionais, será retornado um erro informando que não é possível mudar o fuso horário padrão UTC 00:00 (hora zero de Grenwich) e nenhum Objeto não será persistido no Banco de dados, retornado um **HTTP Satus Code 500 🡢 Internal Server Error**. 
-
-Para corrigir este problema, de modo a funcionar em qualquer Banco de dados relacional, utilzaremos a Classe **ValueConverter** onde faremos a conversão do Objeto C# e do Registro do Banco de dados para o formato UTC, através do Método **ToUniversalTime()**.
-
-**Linhas 7 a 12:** Cria o Método Construtor com 2 parâmetros herdados da Classe **ValueConverter**: **TModel e TProvider**.  **TModel** é o tipo de dado do Objeto C# e **TProvider** é o tipo de dado do Banco de dados, ou seja, ambos receberão o formato **DateTimeOffset**. Na sequência, ambos os parâmetros serão convertidos para UTC nas linhas 9 e 10 através do Método **ToUniversalTime()**.
-
-A Classe **DateTimeOffsetConverter** serpa utilizada na Classe **AppDbContext** para automatizar o processo, de modo que todo e qualquer atributo das Classes Model, que estiverem no formato **DateTimeOffset**, serão convertidos para o formato UTC.
-
-<br />
-
-<div align="left"><img src="https://i.imgur.com/wHTDfQ2.png" title="source: imgur.com" width="4%"/> <a href="https://learn.microsoft.com/pt-br/ef/core/modeling/value-conversions?tabs=data-annotations#bulk-configuring-a-value-converter" target="_blank"><b>Documentação: Classe ValueConverter</b></a></div>
-
-<div align="left"><img src="https://i.imgur.com/wHTDfQ2.png" title="source: imgur.com" width="4%"/> <a href="https://learn.microsoft.com/pt-br/dotnet/api/system.datetime.touniversaltime?view=net-7.0" target="_blank"><b>Documentação: Método ToUniversalTime()</b></a></div>
 
 <br />
 
@@ -69,36 +228,14 @@ A Classe **DateTimeOffsetConverter** serpa utilizada na Classe **AppDbContext** 
 
 
 
-Vamos atualizar Classe **AppDbContext**, para que todo e qualquer atributo das Classes Model, que estiverem no formato **DateTimeOffset**, sejam convertidos para o formato UTC. 
-
-No **Gerenciador de Soluções** abra a Classe **AppDbContext**, do projeto **blogpessoal**, localizada na pasta **Data**.
-
-2. Insira o Método abaixo no final da Classe **AppDbContext**, depois do Método sobrescrito **SaveChangesAsync**:
-
-```c#
-// Ajusta a Data para o formato UTC - Compatível com qualquer Banco de dados Relacional
-protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-{
-    configurationBuilder
-        .Properties<DateTimeOffset>()
-        .HaveConversion<DateTimeOffsetConverter>();
-}
-```
-
-Vamos analisar o código do Método:
-
-<div align="center"><img src="https://i.imgur.com/UFlDqfi.png" title="source: imgur.com" /></div>
-
-**Linhas 69 a 74:** Implementamos o Método **ConfigureConventions**, responsável por definir como o Entity Framework lidará com alguns tipos de dados, antes de persistir no Banco de dados, definindo os conversores adequados para cada um. Observe que o Método **ConfigureConventions**, pertence a Classe **DbContext**, e neste caso ele foi sobrescrito. 
-
-**Linhas 71 a 73:** Define que todos os atributos do tipo DateTimeOffset (linha 72), serão convertidos para o formato definido UTC, definido na Classe DateTimeOffsetConverter (linha 73).
+Vamos atualizar Classe **AppDbContext**, voltando ao estado inicial do ajuste da **data**, no Método **SaveChangesAsync()**:
 
 Veja o código completo da Classe **AppDbContext**:
 
 ```c#
-using blogpessoal.Configuration;
 using blogpessoal.Model;
 using Microsoft.EntityFrameworkCore;
+using System.Threading;
 
 namespace blogpessoal.Data
 {
@@ -134,6 +271,7 @@ namespace blogpessoal.Data
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+
             var insertedEntries = this.ChangeTracker.Entries()
                                    .Where(x => x.State == EntityState.Added)
                                    .Select(x => x.Entity);
@@ -143,7 +281,8 @@ namespace blogpessoal.Data
                 //Se uma propriedade da Classe Auditable estiver sendo criada. 
                 if (insertedEntry is Auditable auditableEntity)
                 {
-                    auditableEntity.Data = DateTimeOffset.Now;
+                    //auditableEntity.Data = DateTimeOffset.Now;
+                    auditableEntity.Data = new DateTimeOffset(DateTime.Now, new TimeSpan(-3,0,0));
                 }
             }
 
@@ -156,28 +295,18 @@ namespace blogpessoal.Data
                 //Se uma propriedade da Classe Auditable estiver sendo atualizada.  
                 if (modifiedEntry is Auditable auditableEntity)
                 {
-                    auditableEntity.Data = DateTimeOffset.Now;
+                    //auditableEntity.Data = DateTimeOffset.Now;
+                    auditableEntity.Data = new DateTimeOffset(DateTime.Now, new TimeSpan(-3, 0, 0));
                 }
             }
 
             return base.SaveChangesAsync(cancellationToken);
         }
 
-        // Ajusta a Data para o formato UTC - Compatível com o Postgres
-        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-        {
-            configurationBuilder
-                .Properties<DateTimeOffset>()
-                .HaveConversion<DateTimeOffsetConverter>();
-        }
-
     }
 }
+
 ```
-
-<br />
-
-<div align="left"><img src="https://i.imgur.com/wHTDfQ2.png" title="source: imgur.com" width="4%"/> <a href="https://learn.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.dbcontext.configureconventions?view=efcore-7.0" target="_blank"><b>Documentação: Método ConfigureConventions</b></a></div>
 
 <br />
 
@@ -276,4 +405,3 @@ Vamos configurar o fuso horário do servidor, para que o horário de criação e
 5. O Deploy da aplicação será refeito. Aguarde a conclusão e inicie os testes da aplicação no próximo passo.
 
 <br />
-
